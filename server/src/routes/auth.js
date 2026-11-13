@@ -7,6 +7,7 @@ const { requireAuth, logout, me } = require('../middleware/auth');
 const { HttpError } = require('../auth/errors');
 const { login } = require('../auth/login');
 const { register, verifyOtp, resendOtp } = require('../auth/signup');
+const { forgot, reset, changePassword } = require('../auth/passwordReset');
 const deps = require('../auth/deps');
 
 // Runs an auth function and sends its { status, body }. An HttpError becomes
@@ -29,9 +30,9 @@ router.post('/login', authLimiter, handle(async (req) => ({ status: 200, body: a
 router.post('/logout', requireAuth, logout);
 router.get('/me', requireAuth, me);
 
-// ---- Zain: POST /forgot, /reset, /change-password go here ----
-// Use authLimiter on forgot and reset; requireAuth on change-password.
-// To end old sessions after a reset/change: await deps.endSessions(userId)
-// To clear a login lock: deps.updateUser(userId, require('../auth/lockout').afterSuccess())
+// ---- Zain: forgot, reset and change password ----
+router.post('/forgot', authLimiter, handle((req) => forgot(req.body, deps)));
+router.post('/reset', authLimiter, handle((req) => reset(req.body, deps)));
+router.post('/change-password', requireAuth, authLimiter, handle((req) => changePassword(req.user.id, req.body, deps)));
 
 module.exports = router;
