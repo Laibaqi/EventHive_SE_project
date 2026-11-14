@@ -1,0 +1,163 @@
+// EventHive database schema (Sprint 1). Prisma 7 + PostgreSQL.
+// The database address is in prisma.config.ts (Prisma 7 rule), not here.
+// All times are stored in UTC (timestamptz) and shown in PKT by the app.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Accounts (Laiba, Zain) ----------
+
+enum Role {
+  ATTENDEE
+  ORGANIZER
+  ADMIN
+  MAYOR
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String    @unique // saved lower-case by Laiba's sign-up
+  phone           String?
+  passwordHash    String
+  role            Role      @default(ATTENDEE)
+  emailVerifiedAt DateTime? @db.Timestamptz(3)
+  failedLogins    Int       @default(0) // 5 wrong passwords lock the account
+  lockedUntil     DateTime? @db.Timestamptz(3)
+  tokenVersion    Int       @default(0) // +1 on logout / password reset ends old sessions
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  otpCodes  OtpCode[]
+  auditLogs AuditLog[]
+  events    Event[]   @relation("OrganizerEvents")
+  venues    Venue[]
+}
+
+// ---------- OTP codes and activity log (Alishah) ----------
+
+enum OtpPurpose {
+  SIGNUP_VERIFY
+  PASSWORD_RESET
+}
+
+model OtpCode {
+  id        Int        @id @default(autoincrement())
+  email     String // lower-case
+  purpose   OtpPurpose
+  userId    Int?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String // HMAC of the code, never the code itself
+  expiresAt DateTime   @db.Timestamptz(3)
+  attempts  Int        @default(0)
+  usedAt    DateTime?  @db.Timestamptz(3)
+  createdAt DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@index([email, purpose, createdAt])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action     String
+  targetType String?
+  targetId   String?
+  details    Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@index([actorId])
+}
+
+// ---------- Places and categories ----------
+
+model City {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  active Boolean @default(true)
+
+  venues Venue[]
+  events Event[]
+}
+
+model Genre {
+  id      Int     @id @default(autoincrement())
+  name    String  @unique
+  retired Boolean @default(false)
+
+  events Event[]
+}
+
+model Venue {
+  id           Int      @id @default(autoincrement())
+  name         String
+  address      String
+  cityId       Int
+  city         City     @relation(fields: [cityId], references: [id])
+  contactEmail String?
+  createdById  Int?
+  createdBy    User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  events Event[]
+
+  @@index([cityId])
+}
+
+// ---------- Events (Ushna) and calendar (Hamza) ----------
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Event {
+  id          Int         @id @default(autoincrement())
+  organizerId Int
+  organizer   User        @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  // Drafts can be saved half-filled, so these are optional; Publish checks them all.
+  title       String?
+  description String?
+  genreId     Int?
+  genre       Genre?      @relation(fields: [genreId], references: [id])
+  venueId     Int?
+  venue       Venue?      @relation(fields: [venueId], references: [id])
+  cityId      Int? // always copied from the venue's city
+  city        City?       @relation(fields: [cityId], references: [id])
+  startAt     DateTime?   @db.Timestamptz(3)
+  endAt       DateTime?   @db.Timestamptz(3)
+  capacity    Int? // 1 to 500
+  status      EventStatus @default(DRAFT)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+
+  tiers TicketTier[]
+
+  @@index([status, startAt])
+  @@index([cityId])
+  @@index([organizerId])
+}
+
+enum TierType {
+  BASIC
+  STUDENT
+  VIP
+  SPECIAL_GUEST
+}
+
+model TicketTier {
+  id      Int      @id @default(autoincrement())
+  eventId Int
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  type    TierType
+  price   Int // whole PKR, 0 = free; Special Guest is always 0
+  limit   Int? // optional; all limits together <= capacity
+
+  @@unique([eventId, type])
+}
