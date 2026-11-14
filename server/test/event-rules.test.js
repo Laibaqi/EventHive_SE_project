@@ -58,3 +58,16 @@ test('TC-EVNT-09: capacity up is fine, down is refused', () => {
   assert.strictEqual(checkPublishedEdit(good(), { capacity: 300 }), null);
   assert.strictEqual(checkPublishedEdit(good(), { capacity: 100 }).field, 'capacity');
 });
+
+test('Published edit: sending an unchanged title is fine', () => {
+  assert.strictEqual(checkPublishedEdit(good(), { title: 'Lahore Music Night', capacity: 250 }), null);
+});
+
+test('Published edit: same date written in UTC counts as unchanged', () => {
+  assert.strictEqual(checkPublishedEdit(good(), { startAt: '2026-12-01T14:00:00Z' }), null);
+});
+
+test('A garbage start date is refused', () => {
+  const e = { ...good(), startAt: 'abc' };
+  assert.strictEqual(checkPublish(e, NOW).field, 'startAt');
+});

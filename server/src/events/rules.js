@@ -17,8 +17,11 @@ function checkPublish(event, now = new Date()) {
   if (!event.genre || event.genre.retired) return fail('Please choose a genre', 'genreId');
   if (!event.venueId) return fail('Please choose a venue', 'venueId');
 
-  if (!event.startAt || new Date(event.startAt) <= now) return fail('Start time must be in the future', 'startAt');
-  if (!event.endAt || new Date(event.endAt) <= new Date(event.startAt)) return fail('End time must be after the start time', 'endAt');
+  // isNaN catches garbage like "abc" (an Invalid Date), which <= would let through.
+  const start = new Date(event.startAt);
+  if (!event.startAt || isNaN(start) || start <= now) return fail('Start time must be in the future', 'startAt');
+  const end = new Date(event.endAt);
+  if (!event.endAt || isNaN(end) || end <= start) return fail('End time must be after the start time', 'endAt');
 
   const cap = event.capacity;
   if (!Number.isInteger(cap) || cap < 1 || cap > 500) return fail('Capacity must be a whole number from 1 to 500', 'capacity');
@@ -60,6 +63,16 @@ const LOCKED = {
   tiers: "Ticket types can't change after publishing",
 };
 
+// True if the new value is the same as what's already saved.
+// The edit form may send every field back, so unchanged fields must not be refused.
+function isSame(field, oldVal, newVal) {
+  if (field === 'startAt' || field === 'endAt') {
+    return new Date(oldVal).getTime() === new Date(newVal).getTime();
+  }
+  if (field === 'tiers') return false; // tiers are never allowed for published events
+  return String(oldVal ?? '') === String(newVal ?? '');
+}
+
 function checkPublishedEdit(event, changes) {
   for (const field of Object.keys(changes)) {
     if (field === 'description') continue;
@@ -70,6 +83,7 @@ function checkPublishedEdit(event, changes) {
       }
       continue;
     }
+    if (isSame(field, event[field], changes[field])) continue; // not really a change
     return fail(LOCKED[field] || "This can't change after publishing", field);
   }
   return null;
