@@ -22,3 +22,10 @@
 - End a user's sessions (logout, password reset): `require('../auth/deps').endSessions(userId)`
 - User fields used: `passwordHash`, `role`, `emailVerifiedAt`, `failedLogins`, `lockedUntil`, `tokenVersion`
 - Tests: `npm test` (no database needed)
+
+## Database (Prisma 7 + PostgreSQL)
+- Schema: `prisma/schema.prisma`. Database address: `DATABASE_URL` in `.env`, read by `prisma.config.ts`.
+- Prisma 7 needs the PostgreSQL driver adapter: `npm install @prisma/adapter-pg pg` (already in package.json once merged).
+- Check the schema without a database: `npx prisma validate` and `npx prisma generate`.
+- With a database: `npx prisma migrate dev --name init`, then add `prisma/sql/audit_append_only.sql` as a second migration (steps inside the file), then `npx prisma db seed`.
+- Seed logins (all verified), password `Test1234`: admin@eventhive.test, organizer@eventhive.test, attendee@eventhive.test.
