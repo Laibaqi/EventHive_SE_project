@@ -120,7 +120,7 @@ export default function VerifyOtp() {
               className="eh-input eh-input--code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
+              
               placeholder="••••••"
               value={code}
               onChange={(e) => {
