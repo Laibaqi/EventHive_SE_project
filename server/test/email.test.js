@@ -55,3 +55,36 @@ test('TC-AUDT-03: every action name Laiba logs is accepted', async () => {
   }
   assert.equal(rows.length, 4);
 });
+
+test('TC-EMAIL-06: with BREVO_API_KEY the email goes through Brevo over HTTPS (not SMTP)', async () => {
+  const { _setFetch } = require('../src/lib/email');
+  process.env.BREVO_API_KEY = 'test-key';
+  process.env.MAIL_FROM = 'EventHive <eventhive.teams@gmail.com>';
+  const calls = [];
+  _setFetch(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ messageId: 'brevo-1' }) }; });
+  _setTransporter({ sendMail: async () => { throw new Error('SMTP must not be used'); } });
+  try {
+    const r = await sendEmail('otp', 'ali@test.pk', { name: 'Ali', code: '654321' });
+    assert.deepEqual(r, { ok: true, messageId: 'brevo-1' });
+    assert.equal(calls[0].url, 'https://api.brevo.com/v3/smtp/email');
+    assert.equal(calls[0].opts.headers['api-key'], 'test-key');
+    const body = JSON.parse(calls[0].opts.body);
+    assert.deepEqual(body.sender, { name: 'EventHive', email: 'eventhive.teams@gmail.com' });
+    assert.deepEqual(body.to, [{ email: 'ali@test.pk' }]);
+    assert.ok(body.htmlContent.includes('654321'));
+  } finally { delete process.env.BREVO_API_KEY; delete process.env.MAIL_FROM; _setFetch(undefined); _setTransporter(undefined); }
+});
+
+test('TC-EMAIL-07: a Brevo error is retried 3 times and never throws', async () => {
+  const { _setFetch } = require('../src/lib/email');
+  process.env.BREVO_API_KEY = 'bad-key';
+  let calls = 0;
+  _setFetch(async () => { calls++; return { ok: false, status: 401, json: async () => ({ message: 'Key not found' }) }; });
+  const orig = console.error; console.error = () => {};
+  try {
+    const r = await sendEmail('otp', 'ali@test.pk', { code: '111111' }, { retryDelayMs: 1 });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /Brevo 401/);
+    assert.equal(calls, 3);
+  } finally { console.error = orig; delete process.env.BREVO_API_KEY; _setFetch(undefined); }
+});
