@@ -114,6 +114,6 @@
   /* Edit / View: big enough to tap with a thumb (44px, NFR-19) */
   .eh-actions { gap: 8px; margin-top: 4px; }
   .eh-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 64px; padding: 0 14px; border: 1.5px solid var(--eh-line); border-radius: 8px; text-decoration: none; font-weight: 600; }
-  .eh-table td[data-label="Actions"]::before { display: block; margin-bottom: 2px; }
-}
+    .eh-table td[data-label="Actions"]::before { display: block; margin-bottom: 2px; }
   .eh-help a, .eh-card__foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+}
