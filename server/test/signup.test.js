@@ -155,3 +155,12 @@ test('resend for an unknown email gives the same reply and sends nothing', async
   assert.deepEqual(unknown, known);
   assert.equal(emails.filter((m) => m.to === 'nobody@example.com').length, 0);
 });
+
+test('sign-up answers straight away even if the email server hangs', async () => {
+  const hanging = { ...deps, sendEmail: () => new Promise(() => {}) }; // never finishes
+  const started = Date.now();
+  const r = await register({ ...signup, email: 'slow@example.com' }, hanging);
+  assert.equal(r.status, 201);
+  assert.ok(Date.now() - started < 2000);
+  assert.equal(users.at(-1).email, 'slow@example.com');
+});

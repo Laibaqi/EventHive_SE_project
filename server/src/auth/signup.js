@@ -27,12 +27,17 @@ async function sendCode(deps, user) {
   const { createOtp, PURPOSE } = deps.otp;
   const result = await createOtp({ email: user.email, purpose: PURPOSE.SIGNUP_VERIFY, userId: user.id });
   if (!result.ok) return result; // OTP RESULT: e.g. asked again within 60 seconds
-  await deps.sendEmail('otp', user.email, {
-    name: user.name,
-    code: result.code, // OTP RESULT
-    purpose: 'verify your email',
-    minutes: OTP_MINUTES,
-  });
+  // Not awaited: a slow or blocked mail server must not keep the user waiting on
+  // "Creating account…". The code is saved already; the email goes out in the background
+  // (Alishah's sendEmail retries 3 times and logs a final failure). Same as Zain's forgot().
+  Promise.resolve(
+    deps.sendEmail('otp', user.email, {
+      name: user.name,
+      code: result.code, // OTP RESULT
+      purpose: 'verify your email',
+      minutes: OTP_MINUTES,
+    })
+  ).catch((err) => console.error('[signup] could not send email:', err.message));
   return result;
 }
 
