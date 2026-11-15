@@ -53,6 +53,9 @@ export default function ForgotPassword() {
               try again
             </button>
           </p>
+          <p className="eh-card__foot">
+            Don't have an account yet? <Link to="/register">Sign up</Link>
+          </p>
         </div>
       </section>
     );
@@ -91,7 +94,7 @@ export default function ForgotPassword() {
         </button>
 
         <p className="eh-card__foot">
-          Remembered it? <Link to="/login">Log in</Link>
+          Remembered it? <Link to="/login">Log in</Link> · New here? <Link to="/register">Sign up</Link>
         </p>
       </form>
     </section>
