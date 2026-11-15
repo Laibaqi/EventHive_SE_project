@@ -24,6 +24,14 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
 
   const next = safeNext((location.state && location.state.from) || params.get('next'));
+
+  // Where to go after login: back to the page they wanted, unless it's a dashboard,
+  // because another role's dashboard would only show "No access" (e.g. log out as
+  // organizer, log in as admin). Dashboards always go to the user's own one.
+  function destination(role, serverDashboard) {
+    const own = serverDashboard || dashboardFor(role);
+    return next && !next.startsWith('/dashboard') ? next : own;
+  }
   const passwordChanged = params.get('changed') === '1' || (location.state && location.state.passwordChanged);
 
   const set = (key) => (e) => {
@@ -43,7 +51,7 @@ export default function Login() {
     try {
       const res = await api.post('/api/auth/login', { email: form.email.trim(), password: form.password });
       login(res.token, res.user);
-      navigate(next || res.dashboard || dashboardFor(res.user.role), { replace: true });
+      navigate(destination(res.user.role, res.dashboard), { replace: true });
     } catch (err) {
       if (err.field) setErrors({ [err.field]: err.error });
       else {
@@ -56,7 +64,7 @@ export default function Login() {
   }
 
   // Already logged in: go to the dashboard (or back to the page they wanted).
-  if (isLoggedIn) return <Navigate to={next || dashboardFor(user.role)} replace />;
+  if (isLoggedIn) return <Navigate to={destination(user.role)} replace />;
 
   return (
     <section className="eh-auth">
@@ -69,7 +77,7 @@ export default function Login() {
             Password changed. Log in with your new password.
           </div>
         )}
-        {next && !formError && (
+        {next && !next.startsWith('/dashboard') && !formError && (
           <div className="eh-alert eh-alert--info" role="status">
             Log in to continue. You'll come straight back.
           </div>
