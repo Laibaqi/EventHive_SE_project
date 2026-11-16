@@ -41,8 +41,7 @@ export function checkLogin({ email, password }) {
 
 // Only allow coming back to a page on our own site after login (stops ?next=https://evil.com).
 export function safeNext(path) {
-  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') ? path : null;
-}
+  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') && !path.includes('\\') ? path : null;}
 
 // Show a UTC time in Pakistan time (team rule: store UTC, show PKT).
 export function formatPKT(iso) {
