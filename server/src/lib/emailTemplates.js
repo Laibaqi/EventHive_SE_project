@@ -119,6 +119,65 @@ const templates = {
     });
     return { subject: `New event to review: ${eventTitle}`, html: l.html, text: l.text };
   },
+  // ---------- Sprint 2: tickets (Alishah, NOTF-01 / NOTF-03) ----------
+  // Shared data: { name, eventTitle, when, venue, city, tier, price, ticketId, link }
+  // `when` is already Pakistan time text, e.g. "Sat, 28 Nov 2026, 7:00 pm".
+
+  // Sent when a ticket is booked. The QR code is attached as a PNG.
+  ticketConfirmed: (d) => {
+    const l = layout({
+      title: 'Your ticket is confirmed',
+      greeting: `Hello ${d.name || 'there'},`,
+      intro: `Your ticket for ${d.eventTitle} is confirmed.`,
+      details: ticketDetails(d),
+      buttons: d.link ? [{ label: 'View my tickets', url: d.link }] : [],
+      note: 'Your QR code is attached to this email and is also on your My tickets page. Show it at the entrance to check in.',
+    });
+    return { subject: `Ticket confirmed: ${d.eventTitle}`, html: l.html, text: l.text };
+  },
+
+  // Sent when the attendee cancels their ticket.
+  ticketCancelled: (d) => {
+    const l = layout({
+      title: 'Your ticket is cancelled',
+      greeting: `Hello ${d.name || 'there'},`,
+      intro: `Your ticket for ${d.eventTitle} has been cancelled. Its QR code will no longer work at the entrance.`,
+      details: ticketDetails(d),
+      buttons: d.link ? [{ label: 'View my tickets', url: d.link }] : [],
+      note: 'If you did not cancel this ticket, please contact the event organizer.',
+    });
+    return { subject: `Ticket cancelled: ${d.eventTitle}`, html: l.html, text: l.text };
+  },
+
+  // Sent once, about 24 hours before the event starts.
+  eventReminder: (d) => {
+    const l = layout({
+      title: 'Your event is tomorrow',
+      greeting: `Hello ${d.name || 'there'},`,
+      intro: `A reminder that ${d.eventTitle} starts soon.`,
+      details: ticketDetails(d),
+      buttons: d.link ? [{ label: 'Show my ticket', url: d.link }] : [],
+      note: 'Keep your QR code ready on your phone to check in at the entrance.',
+    });
+    return { subject: `Reminder: ${d.eventTitle} starts ${d.startsIn || 'soon'}`, html: l.html, text: l.text };
+  },
 };
 
-module.exports = { templates, layout, esc };
+// "Free" for 0, otherwise "PKR 1,500".
+function formatPrice(price) {
+  const n = Number(price) || 0;
+  return n === 0 ? 'Free' : `PKR ${n.toLocaleString('en-US')}`;
+}
+
+function ticketDetails(d) {
+  return [
+    ['Event', d.eventTitle],
+    ['When (PKT)', d.when],
+    ['Venue', [d.venue, d.city].filter(Boolean).join(', ')],
+    ['Ticket type', d.tier],
+    ['Price', formatPrice(d.price)],
+    ['Ticket no.', d.ticketId != null ? `#${d.ticketId}` : ''],
+  ].filter(([, v]) => v !== undefined && v !== null && v !== '');
+}
+
+module.exports = { templates, layout, esc, formatPrice };

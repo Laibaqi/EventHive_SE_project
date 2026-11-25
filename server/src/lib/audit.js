@@ -48,6 +48,13 @@ const ACTIONS = Object.freeze({
   ADMIN_TAG_RETIRE: 'ADMIN_TAG_RETIRE',
   ADMIN_TAG_RESTORE: 'ADMIN_TAG_RESTORE',
   ADMIN_TAG_DELETE: 'ADMIN_TAG_DELETE',
+  // Sprint 2: tickets, check-in, certificates, notifications
+  TICKET_BOOKED: 'TICKET_BOOKED', // Huzaifa
+  TICKET_PAID: 'TICKET_PAID', // Huzaifa (mock payment)
+  TICKET_CANCELLED: 'TICKET_CANCELLED', // Huzaifa
+  CHECKED_IN: 'CHECKED_IN', // Ushna
+  CERTIFICATE_ISSUED: 'CERTIFICATE_ISSUED', // Zain
+  REMINDER_SENT: 'REMINDER_SENT', // Alishah
   // System
   EMAIL_FAILED: 'EMAIL_FAILED', // NFR-08: final failure after retries, visible to Admins
 });
