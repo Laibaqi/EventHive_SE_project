@@ -5,6 +5,9 @@
 // Never throws on a send failure: returns { ok:false } so sign-up / forgot password still answer the user.
 //
 //   await sendEmail('otp', user.email, { name: user.name, code, purpose: 'verify your email', minutes: 10 });
+//
+// Attachments (e.g. the ticket QR code as a PNG):
+//   await sendEmail('ticketConfirmed', to, data, { attachments: [{ filename: 'ticket-12-qr.png', content: pngBuffer }] });
 const { templates } = require('./emailTemplates');
 
 let transporter;
@@ -34,11 +37,20 @@ let fetchImpl = (...args) => fetch(...args);
 
 // Brevo transactional email API (https://developers.brevo.com/reference/sendtransacemail).
 // The sender address must be verified in Brevo (Senders & IPs > Senders).
-async function sendWithBrevo({ from, to, subject, html, text }) {
+async function sendWithBrevo({ from, to, subject, html, text, attachments }) {
   const res = await fetchImpl('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: { 'api-key': process.env.BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ sender: parseFrom(from), to: [{ email: to }], subject, htmlContent: html, textContent: text }),
+    body: JSON.stringify({
+      sender: parseFrom(from),
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+      ...(attachments && attachments.length
+        ? { attachment: attachments.map((a) => ({ name: a.filename, content: Buffer.from(a.content).toString('base64') })) }
+        : {}),
+    }),
     signal: AbortSignal.timeout(15000),
   });
   const body = await res.json().catch(() => ({}));
@@ -46,14 +58,15 @@ async function sendWithBrevo({ from, to, subject, html, text }) {
   return { messageId: body.messageId };
 }
 
-async function sendEmail(template, to, data = {}, { retryDelayMs = 1000 } = {}) {
+async function sendEmail(template, to, data = {}, { retryDelayMs = 1000, attachments = [] } = {}) {
   const build = templates[template];
   if (!build) throw new Error(`Unknown email template: ${template}`); // programmer mistake -> throw
   const { subject, html, text } = build(data);
 
   const useBrevo = Boolean(process.env.BREVO_API_KEY);
   if (!useBrevo && !process.env.SMTP_HOST) {
-    console.log(`\n========== [DEV EMAIL: ${template}] ==========\nTo: ${to}\nSubject: ${subject}\n\n${text}\n==============================================\n`);
+    const files = attachments.length ? `\nAttachments: ${attachments.map((a) => a.filename).join(', ')}` : '';
+    console.log(`\n========== [DEV EMAIL: ${template}] ==========\nTo: ${to}\nSubject: ${subject}${files}\n\n${text}\n==============================================\n`);
     return { ok: true, dev: true };
   }
 
@@ -61,6 +74,7 @@ async function sendEmail(template, to, data = {}, { retryDelayMs = 1000 } = {}) 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const message = { from: process.env.MAIL_FROM || 'EventHive <no-reply@eventhive.app>', to, subject, html, text };
+      if (attachments.length) message.attachments = attachments; // Nodemailer format: { filename, content }
       const info = useBrevo ? await sendWithBrevo(message) : await getTransporter().sendMail(message);
       return { ok: true, messageId: info.messageId };
     } catch (err) {
